@@ -1,0 +1,124 @@
+import { heatLevel, heatColor, heatLabel } from '../lib/scoring';
+import useStore from '../lib/store';
+
+const SOURCE_COLORS = {
+  reddit:    { bg: 'rgba(255,86,0,0.12)',   color: '#ff6314' },
+  twitter:   { bg: 'rgba(29,161,242,0.12)', color: '#1da1f2' },
+  linkedin:  { bg: 'rgba(0,119,181,0.12)',  color: '#0a66c2' },
+  facebook:  { bg: 'rgba(24,119,242,0.12)', color: '#1877f2' },
+  quora:     { bg: 'rgba(180,0,0,0.12)',    color: '#b92b27' },
+  nairaland: { bg: 'rgba(0,160,0,0.12)',    color: '#00a800' },
+  instagram: { bg: 'rgba(193,53,132,0.12)', color: '#c13584' },
+  google:    { bg: 'rgba(66,133,244,0.12)', color: '#4285f4' },
+  default:   { bg: 'rgba(99,102,241,0.12)', color: 'var(--accent2)' },
+};
+
+function getSrcStyle(source) {
+  const s = (source || '').toLowerCase();
+  for (const [k, v] of Object.entries(SOURCE_COLORS)) {
+    if (s.includes(k)) return v;
+  }
+  return SOURCE_COLORS.default;
+}
+
+function timeAgo(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return `${Math.round(diff)}s ago`;
+  if (diff < 3600) return `${Math.round(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
+  return `${Math.round(diff / 86400)}d ago`;
+}
+
+export default function LeadCard({ lead, onPitch }) {
+  const { dismissLead, pitched } = useStore();
+  const heat      = heatLevel(lead.score);
+  const srcStyle  = getSrcStyle(lead.source);
+  const isPitched = pitched.includes(lead.id);
+  const heatBorder = heat === 'hot' ? '#ef4444' : heat === 'warm' ? '#f59e0b' : '#3b82f6';
+
+  return (
+    <div className="fade-in" style={{
+      background: 'var(--bg2)',
+      border: '1px solid var(--border)',
+      borderLeft: `3px solid ${heatBorder}`,
+      borderRadius: 'var(--radius)',
+      padding: '12px 14px',
+    }}>
+      {/* Top row: source + score + dismiss */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, flex: 1 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '2px 8px',
+            borderRadius: 20, background: srcStyle.bg, color: srcStyle.color,
+            whiteSpace: 'nowrap',
+          }}>{lead.source}</span>
+          {lead.sub && <span style={{ fontSize: 11, color: 'var(--text3)' }}>{lead.sub}</span>}
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text2)' }}>{lead.handle}</span>
+          {isPitched && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.12)', color: '#22c55e', padding: '2px 7px', borderRadius: 20, fontWeight: 600 }}>✓ Pitched</span>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, whiteSpace: 'nowrap',
+            background: heat === 'hot' ? 'rgba(239,68,68,0.12)' : heat === 'warm' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)',
+            color: heatBorder,
+          }}>{heatLabel(lead.score)} · {lead.score}</span>
+          <button onClick={() => dismissLead(lead.id)} style={{
+            background: 'none', border: 'none', color: 'var(--text3)',
+            cursor: 'pointer', fontSize: 18, padding: '0 2px', lineHeight: 1, flexShrink: 0,
+          }} title="Dismiss">×</button>
+        </div>
+      </div>
+
+      {/* Score bar */}
+      <div style={{ height: 3, background: 'var(--bg3)', borderRadius: 2, marginBottom: 8 }}>
+        <div style={{ height: '100%', width: `${lead.score}%`, background: heatBorder, borderRadius: 2, transition: 'width 0.6s ease' }} />
+      </div>
+
+      {/* Excerpt */}
+      <div style={{
+        fontSize: 13, color: 'var(--text)', lineHeight: 1.6,
+        background: 'var(--bg3)', padding: '9px 11px',
+        borderRadius: 7, marginBottom: 9,
+        borderLeft: '2px solid var(--border2)',
+        fontStyle: 'italic',
+      }}>
+        "{lead.excerpt?.slice(0, 240)}{(lead.excerpt?.length || 0) > 240 ? '...' : ''}"
+      </div>
+
+      {/* Meta */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+        {[
+          { icon: '🕐', text: timeAgo(lead.createdAt) },
+          { icon: '📍', text: lead.region },
+          { icon: '🔖', text: lead.keyword },
+          lead.contact?.email && { icon: '📧', text: 'Email found' },
+          lead.contact?.phone && { icon: '📞', text: 'Phone found' },
+        ].filter(Boolean).map((m, i) => (
+          <span key={i} style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            {m.icon} {m.text}
+          </span>
+        ))}
+      </div>
+
+      {/* Actions — stack on very small screens */}
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={() => onPitch(lead)}>
+          ✉️ {isPitched ? 'Re-pitch' : 'Pitch lead'}
+        </button>
+        {lead.contact?.url && (
+          <a href={lead.contact.url} target="_blank" rel="noreferrer">
+            <button className="btn" style={{ fontSize: 12 }}>↗ View post</button>
+          </a>
+        )}
+        {lead.contact?.phone && (
+          <a href={`https://wa.me/${(lead.contact.phone||'').replace(/\D/g,'')}`} target="_blank" rel="noreferrer">
+            <button className="btn btn-success" style={{ fontSize: 12 }}>📱 WhatsApp</button>
+          </a>
+        )}
+        <button className="btn" style={{ fontSize: 12 }} onClick={() => navigator.clipboard?.writeText(lead.excerpt || '')}>
+          📋 Copy
+        </button>
+      </div>
+    </div>
+  );
+}

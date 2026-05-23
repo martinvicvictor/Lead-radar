@@ -1,0 +1,177 @@
+/* Lead Radar — Global Styles */
+/* NOTE: This app uses inline styles throughout. No Tailwind utility classes are used.
+   The CSS variables below power the entire dark theme. */
+
+:root {
+  --bg:       #0f1117;
+  --bg2:      #161b27;
+  --bg3:      #1e2535;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --text:     #f0f2f8;
+  --text2:    #8b93a8;
+  --text3:    #5a6278;
+  --accent:   #6366f1;
+  --accent2:  #818cf8;
+  --hot:      #ef4444;
+  --warm:     #f59e0b;
+  --cold:     #3b82f6;
+  --green:    #22c55e;
+  --radius:   12px;
+  --radius-sm: 8px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn:hover { background: var(--bg3); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn-primary:disabled { background: var(--accent); opacity: 0.5; }
+
+.btn-success {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: var(--green);
+}
+.btn-success:hover { background: rgba(34, 197, 94, 0.25); }
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--hot);
+}
+.btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+
+/* Inputs */
+.input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text3); }
+
+select.input {
+  cursor: pointer;
+  appearance: auto;
+}
+
+textarea.input {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.25s ease forwards; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.pulse { animation: pulse 2s ease-in-out infinite; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
+
+/* Score bar */
+.score-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* Range input */
+input[type="range"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Checkbox */
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+/* Links */
+a { color: inherit; text-decoration: none; }
+
+/* Remove default button outline on click */
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Mobile bottom nav space */
+@media (max-width: 768px) {
+  body { padding-bottom: env(safe-area-inset-bottom, 0); }
+}
