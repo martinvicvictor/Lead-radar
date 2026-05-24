@@ -204,8 +204,8 @@ export function ConfigPage() {
 
   const sources = config.sources || DEFAULT_SOURCES;
   const freeSrc  = sources.filter(s => s.free);
-  const apifySrc = sources.filter(s => !s.free && s.provider === "apify");
-  const otherSrc = sources.filter(s => !s.free && s.provider !== "apify");
+  const apifySrc = sources.filter(s => !s.free && (s.provider === "apify" || s.id === "tiktok_comments" || s.id === "tiktok_hashtag"));
+  const otherSrc = sources.filter(s => !s.free && s.provider !== "apify" && s.id !== "tiktok_comments" && s.id !== "tiktok_hashtag");
 
   return (
     <div style={{ maxWidth: 760 }}>
@@ -286,25 +286,29 @@ export function ConfigPage() {
         <SourceGrid sources={freeSrc} toggleSource={toggleSource} />
       </Section>
 
-      {/* Apify sources */}
-      <Section title="Apify — Facebook, LinkedIn, Instagram, Quora (cheaper option)">
+      {/* Apify sources — includes TikTok */}
+      <Section title="Apify — Facebook, LinkedIn, Instagram, Quora, TikTok (cheaper option)">
         <InfoBox title="How to activate Apify">
           1. Sign up free at <a href="https://apify.com" target="_blank" rel="noreferrer" style={{ color: "var(--accent2)" }}>apify.com</a> — free tier included, paid from ~$5/month<br />
           2. Go to Apify Console → Settings → Integrations → copy your API Token<br />
           3. In Vercel → your project → Settings → Environment Variables, add:<br />
           Key: <Code>APIFY_API_TOKEN</Code> — Value: your token → Save → Redeploy<br />
-          4. Enable whichever platforms you want below — they activate instantly
+          4. Enable whichever platforms you want below — they activate instantly<br />
+          <br />
+          <strong style={{ color: "var(--text)" }}>TikTok notes:</strong> "TikTok Comments" scrapes comments on videos in your niche — great for finding people asking about web design services. "TikTok Hashtags" finds posts under hashtags like #NigerianBusiness or #WebsiteDesign. Both use your same Apify token.
         </InfoBox>
         <SourceGrid sources={apifySrc} toggleSource={toggleSource} />
       </Section>
 
-      {/* Outscraper for Google Maps */}
+      {/* Other premium sources */}
       <Section title="Other premium sources">
-        <InfoBox title="Google Maps (Outscraper) — find Nigerian businesses with no website">
+        <InfoBox title="Google Maps — find businesses without a website (Nigeria or anywhere globally)">
+          Finds businesses in any city or country that have no website listed. Works globally — not just Nigeria.<br />
+          Set the location in Scan Settings below (e.g. Lagos, London, New York — or leave blank for global).<br />
           1. Sign up at <a href="https://outscraper.com" target="_blank" rel="noreferrer" style={{ color: "var(--accent2)" }}>outscraper.com</a> — pay per result, very cheap<br />
-          2. Get your API key from the dashboard<br />
+          2. Get your API key from the Outscraper dashboard<br />
           3. In Vercel → Environment Variables, add: <Code>OUTSCRAPER_API_KEY</Code> → Save → Redeploy<br />
-          4. Enable Google Maps below
+          4. Enable Google Maps below and set your target location in Scan Settings
         </InfoBox>
         <InfoBox title="PhantomBuster — LinkedIn and Facebook alternative">
           1. Sign up at <a href="https://phantombuster.com" target="_blank" rel="noreferrer" style={{ color: "var(--accent2)" }}>phantombuster.com</a> (~$15-30/month)<br />
@@ -314,10 +318,11 @@ export function ConfigPage() {
           4. Enable PhantomBuster sources below
         </InfoBox>
         <InfoBox title="Email finder (Hunter.io) — free tier: 25 searches/month">
+          When you click "Find email" on any lead card, it looks up the email for that business automatically.<br />
+          The email appears on the lead card and auto-fills in the pitch modal when you click "Open Email".<br />
           1. Sign up free at <a href="https://hunter.io" target="_blank" rel="noreferrer" style={{ color: "var(--accent2)" }}>hunter.io</a><br />
           2. Go to Dashboard → API → copy your API key<br />
-          3. In Vercel → Environment Variables, add: <Code>HUNTER_API_KEY</Code> → Redeploy<br />
-          4. The "Find email" button on each lead card will then work automatically
+          3. In Vercel → Environment Variables, add: <Code>HUNTER_API_KEY</Code> → Redeploy
         </InfoBox>
         <SourceGrid sources={otherSrc} toggleSource={toggleSource} />
       </Section>
@@ -346,6 +351,15 @@ export function ConfigPage() {
               <option value="nigeria">Nigeria only</option>
               <option value="intl">International only</option>
             </select>
+          </Field>
+          <Field label="Google Maps target location">
+            <input className="input" value={config.gmapsLocation || ""} onChange={e => setConfig({ gmapsLocation: e.target.value })} placeholder="e.g. Lagos, London, New York, or leave blank for global" />
+          </Field>
+          <Field label={"Cold storage after: " + (config.coldStorageDays || 7) + " days"}>
+            <input type="range" min={3} max={30} value={config.coldStorageDays || 7} onChange={e => setConfig({ coldStorageDays: Number(e.target.value) })} style={{ width: "100%", marginTop: 8 }} />
+            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+              Leads not pitched after this many days move to Cold Storage automatically
+            </div>
           </Field>
         </div>
       </Section>
