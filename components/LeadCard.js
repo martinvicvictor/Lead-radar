@@ -3,25 +3,24 @@ import { heatLevel, heatColor, heatLabel } from "../lib/scoring";
 import useStore from "../lib/store";
 
 const STAGES = ["New", "Contacted", "Replied", "Converted", "Lost"];
-
 const STAGE_COLORS = {
-  New:       { bg: "rgba(99,102,241,0.12)", color: "#818cf8" },
-  Contacted: { bg: "rgba(245,158,11,0.12)", color: "#f59e0b" },
-  Replied:   { bg: "rgba(59,130,246,0.12)", color: "#60a5fa" },
-  Converted: { bg: "rgba(34,197,94,0.12)",  color: "#22c55e" },
-  Lost:      { bg: "rgba(239,68,68,0.12)",  color: "#ef4444" },
+  New:       { bg: "rgba(99,102,241,0.12)",  color: "#818cf8" },
+  Contacted: { bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
+  Replied:   { bg: "rgba(59,130,246,0.12)",  color: "#60a5fa" },
+  Converted: { bg: "rgba(34,197,94,0.12)",   color: "#22c55e" },
+  Lost:      { bg: "rgba(239,68,68,0.12)",   color: "#ef4444" },
 };
-
 const SOURCE_COLORS = {
-  reddit:    { bg: "rgba(255,86,0,0.12)",   color: "#ff6314" },
-  twitter:   { bg: "rgba(29,161,242,0.12)", color: "#1da1f2" },
-  linkedin:  { bg: "rgba(0,119,181,0.12)",  color: "#0a66c2" },
-  facebook:  { bg: "rgba(24,119,242,0.12)", color: "#1877f2" },
-  quora:     { bg: "rgba(180,0,0,0.12)",    color: "#b92b27" },
-  nairaland: { bg: "rgba(0,160,0,0.12)",    color: "#00a800" },
-  instagram: { bg: "rgba(193,53,132,0.12)", color: "#c13584" },
-  google:    { bg: "rgba(66,133,244,0.12)", color: "#4285f4" },
-  default:   { bg: "rgba(99,102,241,0.12)", color: "var(--accent2)" },
+  reddit:    { bg: "rgba(255,86,0,0.12)",    color: "#ff6314" },
+  twitter:   { bg: "rgba(29,161,242,0.12)",  color: "#1da1f2" },
+  linkedin:  { bg: "rgba(0,119,181,0.12)",   color: "#0a66c2" },
+  facebook:  { bg: "rgba(24,119,242,0.12)",  color: "#1877f2" },
+  quora:     { bg: "rgba(180,0,0,0.12)",     color: "#b92b27" },
+  nairaland: { bg: "rgba(0,160,0,0.12)",     color: "#00a800" },
+  instagram: { bg: "rgba(193,53,132,0.12)",  color: "#c13584" },
+  tiktok:    { bg: "rgba(0,0,0,0.2)",        color: "#69c9d0" },
+  google:    { bg: "rgba(66,133,244,0.12)",  color: "#4285f4" },
+  default:   { bg: "rgba(99,102,241,0.12)",  color: "var(--accent2)" },
 };
 
 function getSrcStyle(source) {
@@ -40,41 +39,57 @@ function timeAgo(iso) {
   return Math.round(diff / 86400) + "d ago";
 }
 
+// Returns colour based on lead age
+function ageColor(iso, coldDays) {
+  const days = (Date.now() - new Date(iso).getTime()) / 86400000;
+  if (days < 1)                return "#22c55e";  // green — fresh
+  if (days < (coldDays || 7) / 2) return "#f59e0b"; // amber — aging
+  return "#ef4444";                                // red — nearly cold
+}
+
+function ageLabel(iso) {
+  const hours = (Date.now() - new Date(iso).getTime()) / 3600000;
+  if (hours < 1)  return "Just in";
+  if (hours < 24) return Math.round(hours) + "h old";
+  return Math.round(hours / 24) + "d old";
+}
+
 export default function LeadCard({ lead, onPitch }) {
-  const { dismissLead, pitched, leadNotes, leadStages, setLeadNote, setLeadStage, config } = useStore();
-  const [showNote,  setShowNote]  = useState(false);
-  const [noteText,  setNoteText]  = useState(leadNotes[lead.id] || "");
+  const { dismissLead, archiveLead, pitched, leadNotes, leadStages,
+          setLeadNote, setLeadStage, config } = useStore();
+
+  const [showNote,     setShowNote]     = useState(false);
+  const [noteText,     setNoteText]     = useState(leadNotes[lead.id] || "");
   const [findingEmail, setFindingEmail] = useState(false);
-  const [foundEmail,   setFoundEmail]   = useState(lead.contact && lead.contact.email ? lead.contact.email : null);
+  const [foundEmail,   setFoundEmail]   = useState(
+    lead.contact && lead.contact.email ? lead.contact.email : null
+  );
   const [showStage, setShowStage] = useState(false);
 
-  const heat      = heatLevel(lead.score);
-  const srcStyle  = getSrcStyle(lead.source);
-  const isPitched = pitched.includes(lead.id);
-  const stage     = leadStages[lead.id] || "New";
+  const heat       = heatLevel(lead.score);
+  const srcStyle   = getSrcStyle(lead.source);
+  const isPitched  = pitched.includes(lead.id);
+  const stage      = leadStages[lead.id] || "New";
   const stageStyle = STAGE_COLORS[stage] || STAGE_COLORS.New;
   const heatBorder = heat === "hot" ? "#ef4444" : heat === "warm" ? "#f59e0b" : "#3b82f6";
+  const ageDotColor = ageColor(lead.createdAt, config.coldStorageDays);
 
-  const saveNote = () => {
-    setLeadNote(lead.id, noteText);
-    setShowNote(false);
-  };
+  const saveNote = () => { setLeadNote(lead.id, noteText); setShowNote(false); };
 
   const findEmail = async () => {
     if (!lead.contact || !lead.contact.url) return;
     setFindingEmail(true);
     try {
-      const domain = new URL(lead.contact.url).hostname.replace("www.", "");
-      const res = await fetch("/api/find-email", {
+      let domain = lead.contact.url;
+      try { domain = new URL(lead.contact.url).hostname.replace("www.", ""); } catch (_) {}
+      const res  = await fetch("/api/find-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain }),
       });
       const data = await res.json();
       if (data.email) setFoundEmail(data.email);
-    } catch (e) {
-      console.error("Email find error", e);
-    }
+    } catch (e) { console.error("Email find error", e); }
     setFindingEmail(false);
   };
 
@@ -96,11 +111,9 @@ export default function LeadCard({ lead, onPitch }) {
           {lead.sub && <span style={{ fontSize: 11, color: "var(--text3)" }}>{lead.sub}</span>}
           <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)" }}>{lead.handle}</span>
           {isPitched && (
-            <span style={{ fontSize: 10, background: "rgba(34,197,94,0.12)", color: "#22c55e", padding: "2px 7px", borderRadius: 20, fontWeight: 600 }}>
-              Pitched
-            </span>
+            <span style={{ fontSize: 10, background: "rgba(34,197,94,0.12)", color: "#22c55e", padding: "2px 7px", borderRadius: 20, fontWeight: 600 }}>Pitched</span>
           )}
-          {/* Pipeline stage badge */}
+          {/* Pipeline stage */}
           <button onClick={() => setShowStage(!showStage)} style={{
             fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20,
             background: stageStyle.bg, color: stageStyle.color,
@@ -111,6 +124,11 @@ export default function LeadCard({ lead, onPitch }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* Age indicator dot */}
+          <span title={ageLabel(lead.createdAt)} style={{
+            display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+            background: ageDotColor, flexShrink: 0,
+          }} />
           <span style={{
             fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, whiteSpace: "nowrap",
             background: heat === "hot" ? "rgba(239,68,68,0.12)" : heat === "warm" ? "rgba(245,158,11,0.12)" : "rgba(59,130,246,0.12)",
@@ -125,7 +143,7 @@ export default function LeadCard({ lead, onPitch }) {
         </div>
       </div>
 
-      {/* Stage selector dropdown */}
+      {/* Stage selector */}
       {showStage && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
           {STAGES.map(s => (
@@ -155,16 +173,16 @@ export default function LeadCard({ lead, onPitch }) {
         "{(lead.excerpt || "").slice(0, 240)}{(lead.excerpt || "").length > 240 ? "..." : ""}"
       </div>
 
-      {/* Meta */}
+      {/* Meta row */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
         {[
-          { icon: "🕐", text: timeAgo(lead.createdAt) },
+          { icon: "🕐", text: timeAgo(lead.createdAt), color: ageDotColor },
           { icon: "📍", text: lead.region },
           { icon: "🔖", text: lead.keyword },
-          foundEmail       ? { icon: "📧", text: foundEmail }       : null,
+          foundEmail ? { icon: "📧", text: foundEmail } : null,
           lead.contact && lead.contact.phone ? { icon: "📞", text: "Phone found" } : null,
         ].filter(Boolean).map((m, i) => (
-          <span key={i} style={{ fontSize: 11, color: "var(--text2)", display: "flex", alignItems: "center", gap: 3 }}>
+          <span key={i} style={{ fontSize: 11, color: m.color || "var(--text2)", display: "flex", alignItems: "center", gap: 3 }}>
             {m.icon} {m.text}
           </span>
         ))}
@@ -198,7 +216,7 @@ export default function LeadCard({ lead, onPitch }) {
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* Actions */}
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
         <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={() => onPitch(lead)}>
           {isPitched ? "Re-pitch" : "Pitch lead"}
@@ -213,13 +231,16 @@ export default function LeadCard({ lead, onPitch }) {
             <button className="btn btn-success" style={{ fontSize: 12 }}>WhatsApp</button>
           </a>
         )}
-        {!foundEmail && lead.contact && lead.contact.url && (
+        {!foundEmail && (
           <button className="btn" style={{ fontSize: 12 }} onClick={findEmail} disabled={findingEmail}>
             {findingEmail ? "Finding..." : "Find email"}
           </button>
         )}
-        <button className="btn" style={{ fontSize: 12 }} onClick={() => { setShowNote(!showNote); }}>
+        <button className="btn" style={{ fontSize: 12 }} onClick={() => setShowNote(!showNote)}>
           {leadNotes[lead.id] ? "Edit note" : "Add note"}
+        </button>
+        <button className="btn" style={{ fontSize: 12 }} onClick={() => archiveLead(lead.id)} title="Move to cold storage">
+          🧊 Archive
         </button>
         <button className="btn" style={{ fontSize: 12 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(lead.excerpt || "")}>
           Copy
