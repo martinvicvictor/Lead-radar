@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import useStore from "../lib/store";
 import LeadCard from "./LeadCard";
 import PitchModal from "./PitchModal";
+import AutoPitchPanel from "./AutoPitchPanel";
 import { getRandomDemoLead, DEMO_LEADS } from "../lib/demoLeads";
 import { heatLevel } from "../lib/scoring";
 
@@ -51,11 +52,12 @@ export default function LeadsPage() {
   } = useStore();
 
   const [filter,      setFilter]      = useState("all");
-  const [view,        setView]        = useState("active");  // active | cold
+  const [view,        setView]        = useState("active");
   const [pitchTarget, setPitchTarget] = useState(null);
   const [scanMsg,     setScanMsg]     = useState("");
   const [scanError,   setScanError]   = useState("");
   const [newCount,    setNewCount]    = useState(0);
+  const [showAutoPitch, setShowAutoPitch] = useState(false);
 
   const coldLeads = getColdLeads ? getColdLeads() : [];
 
@@ -244,6 +246,13 @@ export default function LeadsPage() {
           <button className="btn" onClick={() => { const l = getRandomDemoLead(leads.map(x => x.id)); if (l) addLeads([l]); }} style={{ fontSize: 12 }}>
             Simulate
           </button>
+          <button
+            className="btn"
+            onClick={() => setShowAutoPitch(true)}
+            style={{ fontSize: 12, background: "rgba(239,68,68,0.12)", color: "#ef4444", borderColor: "rgba(239,68,68,0.3)", fontWeight: 600 }}
+          >
+            Auto-pitch hot leads
+          </button>
           <button className="btn" onClick={() => exportCSV(view === "cold" ? coldLeads : visible)} style={{ fontSize: 12 }}>
             CSV
           </button>
@@ -314,6 +323,25 @@ export default function LeadsPage() {
       )}
 
       {pitchTarget && <PitchModal lead={pitchTarget} onClose={() => setPitchTarget(null)} />}
+
+      {/* Auto-pitch modal */}
+      {showAutoPitch && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }}
+          onClick={e => e.target === e.currentTarget && setShowAutoPitch(false)}
+        >
+          <div style={{ background: "var(--bg2)", border: "1px solid var(--border2)", borderRadius: "var(--radius)", width: "100%", maxWidth: 520, maxHeight: "90vh", overflow: "auto", padding: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Auto-pitch hot leads</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>AI writes each pitch — you review and send in one tap</div>
+              </div>
+              <button onClick={() => setShowAutoPitch(false)} style={{ background: "none", border: "none", color: "var(--text3)", fontSize: 22, cursor: "pointer" }}>x</button>
+            </div>
+            <AutoPitchPanel onClose={() => setShowAutoPitch(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
