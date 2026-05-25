@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { heatLevel, heatColor, heatLabel } from "../lib/scoring";
+import { getReachLinks } from "../lib/contactLinks";
 import useStore from "../lib/store";
 
 const STAGES = ["New", "Contacted", "Replied", "Converted", "Lost"];
@@ -32,31 +33,25 @@ function getSrcStyle(source) {
 }
 
 function timeAgo(iso) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60)    return Math.round(diff) + "s ago";
-  if (diff < 3600)  return Math.round(diff / 60) + "m ago";
-  if (diff < 86400) return Math.round(diff / 3600) + "h ago";
-  return Math.round(diff / 86400) + "d ago";
+  const d = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (d < 60)    return Math.round(d) + "s ago";
+  if (d < 3600)  return Math.round(d / 60) + "m ago";
+  if (d < 86400) return Math.round(d / 3600) + "h ago";
+  return Math.round(d / 86400) + "d ago";
 }
 
-// Returns colour based on lead age
 function ageColor(iso, coldDays) {
   const days = (Date.now() - new Date(iso).getTime()) / 86400000;
-  if (days < 1)                return "#22c55e";  // green — fresh
-  if (days < (coldDays || 7) / 2) return "#f59e0b"; // amber — aging
-  return "#ef4444";                                // red — nearly cold
-}
-
-function ageLabel(iso) {
-  const hours = (Date.now() - new Date(iso).getTime()) / 3600000;
-  if (hours < 1)  return "Just in";
-  if (hours < 24) return Math.round(hours) + "h old";
-  return Math.round(hours / 24) + "d old";
+  if (days < 1)                    return "#22c55e";
+  if (days < (coldDays || 7) / 2) return "#f59e0b";
+  return "#ef4444";
 }
 
 export default function LeadCard({ lead, onPitch }) {
-  const { dismissLead, archiveLead, pitched, leadNotes, leadStages,
-          setLeadNote, setLeadStage, config } = useStore();
+  const {
+    dismissLead, archiveLead, pitched,
+    leadNotes, leadStages, setLeadNote, setLeadStage, config,
+  } = useStore();
 
   const [showNote,     setShowNote]     = useState(false);
   const [noteText,     setNoteText]     = useState(leadNotes[lead.id] || "");
@@ -64,15 +59,20 @@ export default function LeadCard({ lead, onPitch }) {
   const [foundEmail,   setFoundEmail]   = useState(
     lead.contact && lead.contact.email ? lead.contact.email : null
   );
-  const [showStage, setShowStage] = useState(false);
+  const [showStage,  setShowStage]  = useState(false);
+  const [showReach,  setShowReach]  = useState(false);
 
-  const heat       = heatLevel(lead.score);
-  const srcStyle   = getSrcStyle(lead.source);
-  const isPitched  = pitched.includes(lead.id);
-  const stage      = leadStages[lead.id] || "New";
-  const stageStyle = STAGE_COLORS[stage] || STAGE_COLORS.New;
-  const heatBorder = heat === "hot" ? "#ef4444" : heat === "warm" ? "#f59e0b" : "#3b82f6";
+  const heat        = heatLevel(lead.score);
+  const srcStyle    = getSrcStyle(lead.source);
+  const isPitched   = pitched.includes(lead.id);
+  const stage       = leadStages[lead.id] || "New";
+  const stageStyle  = STAGE_COLORS[stage] || STAGE_COLORS.New;
+  const heatBorder  = heat === "hot" ? "#ef4444" : heat === "warm" ? "#f59e0b" : "#3b82f6";
   const ageDotColor = ageColor(lead.createdAt, config.coldStorageDays);
+
+  // Build smart reach links for this lead
+  const reachLinks = getReachLinks(lead);
+  const primaryLink = reachLinks.find(r => r.primary) || reachLinks[0];
 
   const saveNote = () => { setLeadNote(lead.id, noteText); setShowNote(false); };
 
@@ -113,7 +113,6 @@ export default function LeadCard({ lead, onPitch }) {
           {isPitched && (
             <span style={{ fontSize: 10, background: "rgba(34,197,94,0.12)", color: "#22c55e", padding: "2px 7px", borderRadius: 20, fontWeight: 600 }}>Pitched</span>
           )}
-          {/* Pipeline stage */}
           <button onClick={() => setShowStage(!showStage)} style={{
             fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20,
             background: stageStyle.bg, color: stageStyle.color,
@@ -124,8 +123,7 @@ export default function LeadCard({ lead, onPitch }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {/* Age indicator dot */}
-          <span title={ageLabel(lead.createdAt)} style={{
+          <span title={timeAgo(lead.createdAt)} style={{
             display: "inline-block", width: 8, height: 8, borderRadius: "50%",
             background: ageDotColor, flexShrink: 0,
           }} />
@@ -174,7 +172,7 @@ export default function LeadCard({ lead, onPitch }) {
       </div>
 
       {/* Meta row */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
         {[
           { icon: "🕐", text: timeAgo(lead.createdAt), color: ageDotColor },
           { icon: "📍", text: lead.region },
@@ -188,7 +186,91 @@ export default function LeadCard({ lead, onPitch }) {
         ))}
       </div>
 
-      {/* Note preview */}
+      {/* ── REACH THIS PERSON PANEL ── */}
+      <div style={{
+        background: "var(--bg3)", borderRadius: 8, marginBottom: 10,
+        border: "1px solid var(--border)",
+        overflow: "hidden",
+      }}>
+        <button
+          onClick={() => setShowReach(!showReach)}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "8px 12px", background: "none", border: "none", cursor: "pointer",
+            fontFamily: "inherit", color: "var(--text2)", fontSize: 12, fontWeight: 500,
+          }}
+        >
+          <span>How to reach this person</span>
+          <span style={{ fontSize: 10, color: "var(--text3)" }}>{showReach ? "▲ hide" : "▼ show"}</span>
+        </button>
+
+        {showReach && (
+          <div style={{ padding: "0 12px 12px" }}>
+            {reachLinks.map((link, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                paddingTop: i === 0 ? 0 : 8,
+                marginTop: i === 0 ? 0 : 8,
+                borderTop: i === 0 ? "none" : "1px solid var(--border)",
+              }}>
+                <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{link.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: "var(--text)", fontWeight: link.primary ? 600 : 400, marginBottom: 1 }}>
+                    {link.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.4 }}>{link.note}</div>
+                </div>
+                <a href={link.href} target="_blank" rel="noreferrer" style={{ flexShrink: 0 }}>
+                  <button className={link.primary ? "btn btn-primary" : "btn"} style={{ fontSize: 11, padding: "4px 10px", whiteSpace: "nowrap" }}>
+                    Open
+                  </button>
+                </a>
+              </div>
+            ))}
+
+            {/* Phone / WhatsApp if available */}
+            {lead.contact && lead.contact.phone && (
+              <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>📱</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 600, marginBottom: 1 }}>WhatsApp direct</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>{lead.contact.phone}</div>
+                </div>
+                <a href={"https://wa.me/" + (lead.contact.phone || "").replace(/\D/g, "")} target="_blank" rel="noreferrer">
+                  <button className="btn btn-success" style={{ fontSize: 11, padding: "4px 10px" }}>Open</button>
+                </a>
+              </div>
+            )}
+
+            {/* Email if found */}
+            {foundEmail && (
+              <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>📧</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 600, marginBottom: 1 }}>Email found</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>{foundEmail}</div>
+                </div>
+                <a href={"mailto:" + foundEmail} target="_blank" rel="noreferrer">
+                  <button className="btn btn-primary" style={{ fontSize: 11, padding: "4px 10px" }}>Email</button>
+                </a>
+              </div>
+            )}
+
+            {/* Important note for social platforms */}
+            {(lead.source || "").toLowerCase().match(/twitter|x\.com|tiktok|instagram|linkedin|facebook/) && (
+              <div style={{
+                marginTop: 10, padding: "8px 10px",
+                background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
+                borderRadius: 6, fontSize: 11, color: "#f59e0b", lineHeight: 1.5,
+              }}>
+                Tip: On social platforms, visit their profile first, then send a DM or comment. Do not use automated tools — your account could get banned. Pitch manually for best results.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Note */}
       {leadNotes[lead.id] && !showNote && (
         <div style={{
           fontSize: 11, color: "var(--text2)", background: "rgba(245,158,11,0.08)",
@@ -199,38 +281,23 @@ export default function LeadCard({ lead, onPitch }) {
         </div>
       )}
 
-      {/* Note editor */}
       {showNote && (
         <div style={{ marginBottom: 8 }}>
-          <textarea
-            value={noteText}
-            onChange={e => setNoteText(e.target.value)}
+          <textarea value={noteText} onChange={e => setNoteText(e.target.value)}
             placeholder="Add a private note about this lead..."
-            className="input"
-            style={{ minHeight: 70, fontSize: 12, marginBottom: 6 }}
-          />
+            className="input" style={{ minHeight: 70, fontSize: 12, marginBottom: 6 }} />
           <div style={{ display: "flex", gap: 6 }}>
-            <button className="btn btn-primary" style={{ fontSize: 11, padding: "4px 10px" }} onClick={saveNote}>Save note</button>
+            <button className="btn btn-primary" style={{ fontSize: 11, padding: "4px 10px" }} onClick={saveNote}>Save</button>
             <button className="btn" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setShowNote(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Actions */}
+      {/* Action buttons */}
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
         <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={() => onPitch(lead)}>
           {isPitched ? "Re-pitch" : "Pitch lead"}
         </button>
-        {lead.contact && lead.contact.url && (
-          <a href={lead.contact.url} target="_blank" rel="noreferrer">
-            <button className="btn" style={{ fontSize: 12 }}>View post</button>
-          </a>
-        )}
-        {lead.contact && lead.contact.phone && (
-          <a href={"https://wa.me/" + (lead.contact.phone || "").replace(/\D/g, "")} target="_blank" rel="noreferrer">
-            <button className="btn btn-success" style={{ fontSize: 12 }}>WhatsApp</button>
-          </a>
-        )}
         {!foundEmail && (
           <button className="btn" style={{ fontSize: 12 }} onClick={findEmail} disabled={findingEmail}>
             {findingEmail ? "Finding..." : "Find email"}
@@ -243,7 +310,7 @@ export default function LeadCard({ lead, onPitch }) {
           🧊 Archive
         </button>
         <button className="btn" style={{ fontSize: 12 }} onClick={() => navigator.clipboard && navigator.clipboard.writeText(lead.excerpt || "")}>
-          Copy
+          Copy post
         </button>
       </div>
     </div>
