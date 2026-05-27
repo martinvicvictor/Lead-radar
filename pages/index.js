@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import useStore from "../lib/store";
 
-const Sidebar        = dynamic(() => import("../components/Sidebar"),        { ssr: false });
-const MobileNav      = dynamic(() => import("../components/MobileNav"),      { ssr: false });
-const LeadsPage      = dynamic(() => import("../components/LeadsPage"),      { ssr: false });
-const DigestPage     = dynamic(() => import("../components/DigestPage"),     { ssr: false });
-const KeywordsPage   = dynamic(() => import("../components/KeywordsPage"),   { ssr: false });
-const ReferralPage   = dynamic(() => import("../components/ReferralPage"),   { ssr: false });
-const AutoPitchPanel = dynamic(() => import("../components/AutoPitchPanel"), { ssr: false });
+const Sidebar            = dynamic(() => import("../components/Sidebar"),            { ssr: false });
+const MobileNav          = dynamic(() => import("../components/MobileNav"),          { ssr: false });
+const LeadsPage          = dynamic(() => import("../components/LeadsPage"),          { ssr: false });
+const DigestPage         = dynamic(() => import("../components/DigestPage"),         { ssr: false });
+const BusinessFinderPage = dynamic(() => import("../components/BusinessFinderPage"), { ssr: false });
+const KeywordsPage       = dynamic(() => import("../components/KeywordsPage"),       { ssr: false });
+const ReferralPage       = dynamic(() => import("../components/ReferralPage"),       { ssr: false });
+const AutoPitchPanel     = dynamic(() => import("../components/AutoPitchPanel"),     { ssr: false });
 const OutreachPage = dynamic(() => import("../components/OtherPages").then(m => ({ default: m.OutreachPage })),  { ssr: false });
 const AnalyticsPage= dynamic(() => import("../components/OtherPages").then(m => ({ default: m.AnalyticsPage })), { ssr: false });
 const ConfigPage   = dynamic(() => import("../components/OtherPages").then(m => ({ default: m.ConfigPage })),    { ssr: false });
@@ -17,6 +18,7 @@ const TemplatesPage= dynamic(() => import("../components/OtherPages").then(m => 
 const PAGE_TITLES = {
   leads:     "⚡ Live Leads",
   digest:    "📋 Daily Digest",
+  bizfinder: "🏢 Business Finder",
   keywords:  "🔍 Keyword Research",
   outreach:  "📤 Outreach Log",
   analytics: "📊 Analytics",
@@ -28,6 +30,7 @@ const PAGE_TITLES = {
 function PageContent({ tab }) {
   if (tab === "leads")     return <LeadsPage />;
   if (tab === "digest")    return <DigestPage />;
+  if (tab === "bizfinder") return <BusinessFinderPage />;
   if (tab === "keywords")  return <KeywordsPage />;
   if (tab === "outreach")  return <OutreachPage />;
   if (tab === "analytics") return <AnalyticsPage />;
