@@ -3,6 +3,7 @@ import useStore from "../lib/store";
 const NAV = [
   { id: "leads",     icon: "⚡", label: "Live Leads" },
   { id: "digest",    icon: "📋", label: "Daily Digest" },
+  { id: "bizfinder", icon: "🏢", label: "Business Finder" },
   { id: "keywords",  icon: "🔍", label: "Keywords" },
   { id: "outreach",  icon: "📤", label: "Outreach Log" },
   { id: "analytics", icon: "📊", label: "Analytics" },
