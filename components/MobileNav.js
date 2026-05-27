@@ -3,9 +3,9 @@ import useStore from "../lib/store";
 const ITEMS = [
   { id: "leads",     icon: "⚡", label: "Leads" },
   { id: "digest",    icon: "📋", label: "Digest" },
+  { id: "bizfinder", icon: "🏢", label: "Finder" },
   { id: "keywords",  icon: "🔍", label: "Keywords" },
   { id: "outreach",  icon: "📤", label: "Log" },
-  { id: "analytics", icon: "📊", label: "Stats" },
 ];
 
 export default function MobileNav() {
